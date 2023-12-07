@@ -19,16 +19,157 @@ class WpCptImport
 
     function func_es_template_redirect() {
         global $post;
-        if ($post->post_type === "trip" && @$_GET['sib'] === "test")
+        if ($post->post_type === "trip")
         {
-            $pm = get_post_meta($post->ID);
-            p_r($pm);
-            
-            $wp_travel_engine_setting = get_post_meta($post->ID, "wp_travel_engine_setting", true);
-            p_r($wp_travel_engine_setting);
+            $is_package_added = get_post_meta($post->ID, "is_package_added", true);
+            $is_featured_image_added = get_post_meta($post->ID, "is_featured_image_added", true);
 
-            $wpte_gallery_id = get_post_meta( $post->ID, "wpte_gallery_id", true);
-            p_r($wpte_gallery_id);
+            if (!$is_package_added)
+            {
+                $package_prices = [];
+
+                if (have_rows('prices', $post->ID) )
+                {
+                    $group = "";
+
+                    while( have_rows('prices', $post->ID) ) : 
+                        the_row();
+
+                        $option_title = get_sub_field('option_title');
+                        $option_description = get_sub_field('option_description');
+                        $from = get_sub_field('from');
+                        $to = get_sub_field('to');
+                        $adult = get_sub_field('adult');
+                        $adult_sale = get_sub_field('adult_sale');
+                        $child = get_sub_field('child');
+                        $child_sale = get_sub_field('child_sale');
+                        $student_id = get_sub_field('student_id');
+                        $student_id_sale = get_sub_field('student_id_sale');
+                        $infants = get_sub_field('infants');
+                        $infants_sale = get_sub_field('infants_sale');
+
+                        if (!$adult && !$adult_sale) continue;
+
+                        if ($option_title != $group)
+                        {
+                            $group = $option_title;
+                        }
+
+                        $package_prices[$group]['c_ids'] = [
+                            '16' => '16',
+                            '20' => '20',
+                            '66' => '66',
+                            '263' => '263'
+                        ];
+                        $package_prices[$group]['labels'] = [
+                            '16' => 'Adult',
+                            '20' => 'Child',
+                            '66' => 'Student',
+                            '263' => 'Infant'
+                        ];
+                        $package_prices[$group]['prices'] = [
+                            '16' => $adult,
+                            '20' => $child,
+                            '66' => $student_id,
+                            '263' => $infants
+                        ];
+                        $package_prices[$group]['pricing_types'] = [
+                            '16' => 'per-person',
+                            '20' => 'per-person',
+                            '66' => 'per-person',
+                            '263' => 'per-person'
+                        ];
+
+                        $enabled_sale = [];
+                        if ($adult_sale) { $enabled_sale['16'] = $adult_sale; }
+                        if ($child_sale) { $enabled_sale['20'] = $child_sale; }
+                        if ($student_id_sale) { $enabled_sale['66'] = $student_id_sale; }
+                        if ($infants_sale) { $enabled_sale['263'] = $infants_sale; }
+
+                        if (count($enabled_sale))
+                        {
+                            $package_prices[$group]['enabled_sale'] = $enabled_sale;
+                        }
+                        
+
+                        $package_prices[$group]['sale_prices'] = [
+                            '16' => $adult_sale,
+                            '20' => $child_sale,
+                            '66' => $student_id_sale,
+                            '263' => $infants_sale
+                        ];
+                        $package_prices[$group]['min_paxes'] = [
+                            '16' => ($from) ? $from : '',
+                            '20' => ($from) ? $from : '',
+                            '66' => ($from) ? $from : '',
+                            '263' => ($from) ? $from : ''
+                        ];
+                        $package_prices[$group]['max_paxes'] = [
+                            '16' => ($to) ? $to : '',
+                            '20' => ($to) ? $to : '',
+                            '66' => ($to) ? $to : '',
+                            '263' => ($to) ? $to : ''
+                        ];
+                        
+                    endwhile;
+                }
+
+                //p_r($package_prices);
+                
+                
+                if ($package_prices)
+                {
+                    $package_ids = [];
+
+                    foreach ($package_prices as $option => $package_price)
+                    {
+                        $package_id = wp_insert_post([
+                            'post_type' => 'trip-packages',
+                            'post_title' => $option,
+                            'post_status' => 'publish'
+                        ]);
+
+                        if ($package_id)
+                        {
+                            update_post_meta($package_id, "enable_weekly_time_slots", "no");
+                            update_post_meta($package_id, "package-categories", $package_price);
+                            update_post_meta($package_id, "trip_ID", $post->ID);
+
+                            $package_ids[] = $package_id;
+                        }
+                    }
+
+                    
+
+                    if ($package_ids)
+                    {
+                        update_post_meta($post->ID, "packages_ids", $package_ids);
+
+                        //p_r($package_ids);
+                    }
+                }
+                //echo "packages added";
+
+                update_post_meta($post->ID, "is_package_added", "1");
+            }
+            else
+            {
+                //echo "package already added";
+            }
+
+            if (!$is_featured_image_added)
+            {
+                $wpte_gallery_id = get_post_meta($post->ID, "wpte_gallery_id", true);
+                set_post_thumbnail($post->ID, $wpte_gallery_id['21149549']);
+
+                update_post_meta($post->ID, "is_featured_image_added", "1");
+
+                //echo "<br>featured image added";
+            }
+            else
+            {
+                //echo "<br>featured image already added";
+            }
 
         }
 
